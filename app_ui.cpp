@@ -2,7 +2,7 @@
 #include "cleaner.h"
 #include "tray_win32.h"
 
-ClipboardToolApp::ClipboardToolApp() : writeLock(false) {
+ClipboardToolApp::ClipboardToolApp() {
     app = gtk_application_new("com.coder.winclipboard", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), this);
 }
@@ -35,7 +35,6 @@ void ClipboardToolApp::on_quit_clicked(GtkButton* btn, gpointer user_data) {
 
 void ClipboardToolApp::on_clip_changed(GdkClipboard* clip, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
-    if (self->writeLock) return;
     gdk_clipboard_read_text_async(clip, nullptr, on_clip_read, self);
 }
 
@@ -50,17 +49,18 @@ void ClipboardToolApp::on_clip_read(GObject* src, GAsyncResult* res, gpointer us
     if (curr != self->lastStr && !curr.empty()) {
         std::string fixed = clean_pdf_text(curr, self->config);
         if (fixed != curr && !fixed.empty()) {
-            self->writeLock = true;
+            // Block the "changed" signal handler to prevent re-entrancy.
+            g_signal_handler_block(GDK_CLIPBOARD(src), self->clip_handler_id);
+
             self->lastStr = fixed;
             gdk_clipboard_set_text(GDK_CLIPBOARD(src), fixed.c_str());
+
+            // Unblock the handler immediately after setting the text.
+            g_signal_handler_unblock(GDK_CLIPBOARD(src), self->clip_handler_id);
 
             std::string log = "✅ [已净化] 长度: " + std::to_string(fixed.length()) + "\n预览: " + fixed.substr(0, 36) + "...\n\n";
             self->append_log(log);
 
-            g_timeout_add(150, [](gpointer d) -> gboolean {
-                static_cast<ClipboardToolApp*>(d)->writeLock = false;
-                return G_SOURCE_REMOVE;
-            }, self);
         } else { self->lastStr = curr; }
     }
 }
@@ -68,7 +68,7 @@ void ClipboardToolApp::on_clip_read(GObject* src, GAsyncResult* res, gpointer us
 void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
     self->win = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板文献净化工具 (Win32托盘版)");
+    gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板文献净化工具");
     gtk_window_set_default_size(GTK_WINDOW(self->win), 500, 350);
     gtk_window_set_hide_on_close(GTK_WINDOW(self->win), TRUE); // 点X转入后台
 
@@ -105,7 +105,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_box_append(GTK_BOX(box), btn);
 
     GdkClipboard* clip = gdk_display_get_clipboard(gdk_display_get_default());
-    g_signal_connect(clip, "changed", G_CALLBACK(on_clip_changed), self);
+    self->clip_handler_id = g_signal_connect(clip, "changed", G_CALLBACK(on_clip_changed), self);
 
     SystemTrayWin32::init_tray(GTK_WINDOW(self->win));
     gtk_window_present(GTK_WINDOW(self->win));

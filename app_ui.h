@@ -10,7 +10,7 @@ private:
     GtkTextBuffer* logBuffer;
     ClipboardConfig config;
     std::string lastStr;
-    bool writeLock;
+    gulong clip_handler_id;
 
     static void on_activate(GtkApplication* app, gpointer user_data);
     static void on_check_toggled(GtkCheckButton* btn, gpointer user_data);
