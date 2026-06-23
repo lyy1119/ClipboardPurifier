@@ -79,6 +79,25 @@ void ClipboardToolApp::sync_ui_state() {
 
 void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
+
+    // --- 新增代码：加载自定义CSS以美化开关 ---
+    GtkCssProvider* provider = gtk_css_provider_new();
+    const char* css_data =
+        "/* GtkSwitch OFF state: gray background */"
+        "switch {"
+        "   background-image: none;"
+        "   background-color: #a0a0a0;"
+        "}"
+        "/* GtkSwitch ON state: blue background */"
+        "switch:checked {"
+        "   background-image: none;"
+        "   background-color: #3584e4;"
+        "}";
+    gtk_css_provider_load_from_string(provider, css_data);
+    gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
+    g_object_unref(provider);
+    // --- 新增代码结束 ---
+
     self->win = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板文献净化工具");
     gtk_window_set_default_size(GTK_WINDOW(self->win), 500, 350);
