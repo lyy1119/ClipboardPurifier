@@ -6,14 +6,50 @@ static HWND trayMsgHwnd = NULL;
 static GtkWindow* cachedGtkWindow = nullptr;
 #define WM_TRAY_CLICK (WM_USER + 101)
 
+#define ID_TRAY_SHOW_WINDOW 10001
+#define ID_TRAY_EXIT 10002
+
 static LRESULT CALLBACK tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
-    if (msg == WM_TRAY_CLICK) {
-        if (lParam == WM_LBUTTONDBLCLK || lParam == WM_RBUTTONUP) {
-            if (cachedGtkWindow) {
-                // 由Win32消息泵在GLib主线程中触发，安全调用GTK API呼出窗口
-                gtk_window_present(cachedGtkWindow);
+    switch (msg) {
+        case WM_TRAY_CLICK:
+            switch (lParam) {
+                case WM_LBUTTONDBLCLK:
+                    if (cachedGtkWindow) {
+                        // 由Win32消息泵在GLib主线程中触发，安全调用GTK API呼出窗口
+                        gtk_window_present(cachedGtkWindow);
+                    }
+                    break;
+                case WM_RBUTTONUP: {
+                    POINT pt;
+                    GetCursorPos(&pt);
+                    HMENU hMenu = CreatePopupMenu();
+                    AppendMenuW(hMenu, MF_STRING, ID_TRAY_SHOW_WINDOW, L"显示主窗口");
+                    AppendMenuW(hMenu, MF_STRING, ID_TRAY_EXIT, L"退出");
+
+                    SetForegroundWindow(hwnd);
+                    TrackPopupMenu(hMenu, TPM_RIGHTALIGN | TPM_BOTTOMALIGN, pt.x, pt.y, 0, hwnd, NULL);
+                    DestroyMenu(hMenu);
+                    break;
+                }
             }
-        }
+            break;
+        case WM_COMMAND:
+            switch (LOWORD(wParam)) {
+                case ID_TRAY_SHOW_WINDOW:
+                    if (cachedGtkWindow) {
+                        gtk_window_present(cachedGtkWindow);
+                    }
+                    break;
+                case ID_TRAY_EXIT:
+                    if (cachedGtkWindow) {
+                        GtkApplication* app = gtk_window_get_application(cachedGtkWindow);
+                        if (G_IS_APPLICATION(app)) {
+                            g_application_quit(G_APPLICATION(app));
+                        }
+                    }
+                    break;
+            }
+            break;
     }
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
