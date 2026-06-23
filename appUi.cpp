@@ -1,6 +1,6 @@
 #include "appUi.h"
 #include "cleaner.h"
-#include "trayWin32.h"
+#include "trayWin32.h" // 确保 appUi.h 中有 class ClipboardToolApp; 的前向声明
 
 ClipboardToolApp::ClipboardToolApp() {
     app = gtk_application_new("com.coder.winclipboard", G_APPLICATION_DEFAULT_FLAGS);
@@ -22,6 +22,12 @@ void ClipboardToolApp::append_log(const std::string& msg) {
 
 void ClipboardToolApp::on_check_toggled(GtkCheckButton* btn, gpointer user_data) {
     static_cast<ClipboardToolApp*>(user_data)->config.replaceNewlinesWithSpaces = gtk_check_button_get_active(btn);
+}
+
+void ClipboardToolApp::on_enable_switch_toggled(GtkSwitch* sw, gboolean state, gpointer user_data) {
+    auto* self = static_cast<ClipboardToolApp*>(user_data);
+    self->isCleanerEnabled = state;
+    SystemTrayWin32::update_menu_state();
 }
 
 void ClipboardToolApp::on_entry_changed(GtkEditable* edt, gpointer user_data) {
@@ -46,7 +52,7 @@ void ClipboardToolApp::on_clip_read(GObject* src, GAsyncResult* res, gpointer us
     std::string curr(txt);
     g_free(txt);
 
-    if (curr != self->lastStr && !curr.empty()) {
+    if (self->isCleanerEnabled && curr != self->lastStr && !curr.empty()) {
         std::string fixed = clean_pdf_text(curr, self->config);
         if (fixed != curr && !fixed.empty()) {
             // Block the "changed" signal handler to prevent re-entrancy.
@@ -65,6 +71,12 @@ void ClipboardToolApp::on_clip_read(GObject* src, GAsyncResult* res, gpointer us
     }
 }
 
+void ClipboardToolApp::sync_ui_state() {
+    if (enableSwitch) {
+        gtk_switch_set_active(GTK_SWITCH(enableSwitch), isCleanerEnabled);
+    }
+}
+
 void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
     self->win = gtk_application_window_new(app);
@@ -76,6 +88,16 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_widget_set_margin_start(box, 15); gtk_widget_set_margin_end(box, 15);
     gtk_widget_set_margin_top(box, 15); gtk_widget_set_margin_bottom(box, 15);
     gtk_window_set_child(GTK_WINDOW(self->win), box);
+
+    GtkWidget* switch_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
+    GtkWidget* switch_label = gtk_label_new("开启剪贴板净化：");
+    self->enableSwitch = gtk_switch_new();
+    gtk_switch_set_active(GTK_SWITCH(self->enableSwitch), self->isCleanerEnabled);
+    g_signal_connect(self->enableSwitch, "state-set", G_CALLBACK(on_enable_switch_toggled), self);
+    gtk_box_append(GTK_BOX(switch_box), switch_label);
+    gtk_box_append(GTK_BOX(switch_box), self->enableSwitch);
+    gtk_box_append(GTK_BOX(box), switch_box);
+
 
     GtkWidget* chk = gtk_check_button_new_with_label("自动将换行符替换为空格");
     gtk_check_button_set_active(GTK_CHECK_BUTTON(chk), self->config.replaceNewlinesWithSpaces);
@@ -107,6 +129,6 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     GdkClipboard* clip = gdk_display_get_clipboard(gdk_display_get_default());
     self->clip_handler_id = g_signal_connect(clip, "changed", G_CALLBACK(on_clip_changed), self);
 
-    SystemTrayWin32::init_tray(GTK_WINDOW(self->win));
+    SystemTrayWin32::init_tray(self);
     gtk_window_present(GTK_WINDOW(self->win));
 }

@@ -1,28 +1,37 @@
 #include "trayWin32.h"
+#include "appUi.h"
 #include <windows.h>
 #include <shellapi.h>
 
 static HWND trayMsgHwnd = NULL;
-static GtkWindow* cachedGtkWindow = nullptr;
+static ClipboardToolApp* cachedApp = nullptr; // 从 GtkWindow* 改为 ClipboardToolApp*
 #define WM_TRAY_CLICK (WM_USER + 101)
 
 #define ID_TRAY_SHOW_WINDOW 10001
 #define ID_TRAY_EXIT 10002
+#define ID_TRAY_TOGGLE_ENABLED 10003
 
+void SystemTrayWin32::update_menu_state() {
+    HMENU hMenu = CreatePopupMenu();
+    AppendMenuW(hMenu, MF_STRING | (cachedApp->isCleanerEnabled ? MF_CHECKED : MF_UNCHECKED), ID_TRAY_TOGGLE_ENABLED, L"开启净化");
+    // 此处仅为更新状态，不实际显示，所以不需要 TrackPopupMenu
+    DestroyMenu(hMenu);
+}
 static LRESULT CALLBACK tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
         case WM_TRAY_CLICK:
             switch (lParam) {
                 case WM_LBUTTONDBLCLK:
-                    if (cachedGtkWindow) {
+                    if (cachedApp && cachedApp->win) {
                         // 由Win32消息泵在GLib主线程中触发，安全调用GTK API呼出窗口
-                        gtk_window_present(cachedGtkWindow);
+                        gtk_window_present(GTK_WINDOW(cachedApp->win));
                     }
                     break;
                 case WM_RBUTTONUP: {
                     POINT pt;
                     GetCursorPos(&pt);
                     HMENU hMenu = CreatePopupMenu();
+                    AppendMenuW(hMenu, MF_STRING | (cachedApp->isCleanerEnabled ? MF_CHECKED : MF_UNCHECKED), ID_TRAY_TOGGLE_ENABLED, L"开启净化");
                     AppendMenuW(hMenu, MF_STRING, ID_TRAY_SHOW_WINDOW, L"显示主窗口");
                     AppendMenuW(hMenu, MF_STRING, ID_TRAY_EXIT, L"退出");
 
@@ -36,16 +45,22 @@ static LRESULT CALLBACK tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
         case WM_COMMAND:
             switch (LOWORD(wParam)) {
                 case ID_TRAY_SHOW_WINDOW:
-                    if (cachedGtkWindow) {
-                        gtk_window_present(cachedGtkWindow);
+                    if (cachedApp && cachedApp->win) {
+                        gtk_window_present(GTK_WINDOW(cachedApp->win));
                     }
                     break;
                 case ID_TRAY_EXIT:
-                    if (cachedGtkWindow) {
-                        GtkApplication* app = gtk_window_get_application(cachedGtkWindow);
+                    if (cachedApp && cachedApp->app) {
+                        GtkApplication* app = cachedApp->app;
                         if (G_IS_APPLICATION(app)) {
                             g_application_quit(G_APPLICATION(app));
                         }
+                    }
+                    break;
+                case ID_TRAY_TOGGLE_ENABLED:
+                    if (cachedApp) {
+                        cachedApp->isCleanerEnabled = !cachedApp->isCleanerEnabled;
+                        cachedApp->sync_ui_state();
                     }
                     break;
             }
@@ -54,10 +69,11 @@ static LRESULT CALLBACK tray_wnd_proc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM
     return DefWindowProcW(hwnd, msg, wParam, lParam);
 }
 
-void SystemTrayWin32::init_tray(GtkWindow* mainWindow) {
-    cachedGtkWindow = mainWindow;
+void SystemTrayWin32::init_tray(ClipboardToolApp* app) {
+    cachedApp = app;
 
     WNDCLASSW wc = {0};
+    wc.cbWndExtra = sizeof(ClipboardToolApp*);
     wc.lpfnWndProc = tray_wnd_proc;
     wc.hInstance = GetModuleHandle(NULL);
     wc.lpszClassName = L"GtkWin32TrayClass";
