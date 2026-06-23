@@ -1,4 +1,4 @@
-#include "tray_win32.h"
+#include "trayWin32.h"
 #include <windows.h>
 #include <shellapi.h>
 

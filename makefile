@@ -16,8 +16,8 @@ LIBS     := $(shell pkg-config --libs gtk4)
 LDFLAGS  := -mwindows
 
 # 4. 目标文件定义
-TARGET   := ClipboardPurifier.exe
-SRCS     := main.cpp cleaner.cpp app_ui.cpp tray_win32.cpp
+TARGET   := clipboardPurifier.exe
+SRCS     := main.cpp cleaner.cpp appUi.cpp trayWin32.cpp
 OBJS     := $(SRCS:.cpp=.o)
 
 # 5. 构建规则

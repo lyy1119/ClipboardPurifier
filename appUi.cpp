@@ -1,6 +1,6 @@
-#include "app_ui.h"
+#include "appUi.h"
 #include "cleaner.h"
-#include "tray_win32.h"
+#include "trayWin32.h"
 
 ClipboardToolApp::ClipboardToolApp() {
     app = gtk_application_new("com.coder.winclipboard", G_APPLICATION_DEFAULT_FLAGS);
