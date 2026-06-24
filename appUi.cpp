@@ -82,7 +82,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
 
     self->win = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板文献净化工具");
+    gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板净化工具");
     gtk_window_set_default_size(GTK_WINDOW(self->win), 500, 350);
     gtk_window_set_hide_on_close(GTK_WINDOW(self->win), TRUE); // 点X转入后台
 
@@ -125,7 +125,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), tv);
     gtk_box_append(GTK_BOX(box), scroll);
 
-    GtkWidget* btn = gtk_button_new_with_label("彻底退出程序");
+    GtkWidget* btn = gtk_button_new_with_label("退出程序");
     g_signal_connect(btn, "clicked", G_CALLBACK(on_quit_clicked), self);
     gtk_box_append(GTK_BOX(box), btn);
 

@@ -89,7 +89,7 @@ void SystemTrayWin32::init_tray(ClipboardToolApp* app) {
     nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     nid.uCallbackMessage = WM_TRAY_CLICK;
     nid.hIcon = LoadIcon(NULL, IDI_INFORMATION);
-    wcscpy_s(nid.szTip, L"剪贴板文献净化工具 (双击唤醒)");
+    wcscpy_s(nid.szTip, L"剪贴板净化工具 (双击唤醒)");
 
     Shell_NotifyIconW(NIM_ADD, &nid);
 }

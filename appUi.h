@@ -15,14 +15,14 @@ public:
     gulong clip_handler_id = 0;
     std::string lastStr;
     ClipboardConfig config;
-    
+
     ClipboardToolApp();
     int run(int argc, char* argv[]);
     void sync_ui_state();
-    
+
 private:
     GtkTextBuffer* logBuffer = nullptr;
-    
+
     static void on_activate(GtkApplication* app, gpointer user_data);
     static void on_check_toggled(GtkCheckButton* btn, gpointer user_data);
     static void on_entry_changed(GtkEditable* edt, gpointer user_data);
