@@ -1,8 +1,9 @@
 #include "appUi.h"
 #include "cleaner.h"
 #include "trayWin32.h" // 确保 appUi.h 中有 class ClipboardToolApp; 的前向声明
+#include <memory>
 
-ClipboardToolApp::ClipboardToolApp() {
+ClipboardToolApp::ClipboardToolApp() : uiStrings(std::make_unique<UIStrings>()) {
     app = gtk_application_new("com.coder.winclipboard", G_APPLICATION_DEFAULT_FLAGS);
     g_signal_connect(app, "activate", G_CALLBACK(on_activate), this);
 }
@@ -65,7 +66,7 @@ void ClipboardToolApp::on_clip_read(GObject* src, GAsyncResult* res, gpointer us
             // Unblock the handler immediately after setting the text.
             g_signal_handler_unblock(GDK_CLIPBOARD(src), self->clip_handler_id);
 
-            std::string log = "✅ [已净化] 长度: " + std::to_string(fixed.length()) + "\n预览: " + fixed.substr(0, 36) + "...\n\n";
+            std::string log = self->uiStrings->log_prefix + std::to_string(fixed.length()) + self->uiStrings->log_suffix_preview + fixed.substr(0, 36) + self->uiStrings->log_suffix_end;
             self->append_log(log);
 
         } else { self->lastStr = curr; }
@@ -82,7 +83,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
 
     self->win = gtk_application_window_new(app);
-    gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板净化工具");
+    gtk_window_set_title(GTK_WINDOW(self->win), self->uiStrings->title.c_str());
     gtk_window_set_default_size(GTK_WINDOW(self->win), 500, 350);
     gtk_window_set_hide_on_close(GTK_WINDOW(self->win), TRUE); // 点X转入后台
 
@@ -92,7 +93,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_window_set_child(GTK_WINDOW(self->win), box);
 
     GtkWidget* switch_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 8);
-    GtkWidget* switch_label = gtk_label_new("开启剪贴板净化：");
+    GtkWidget* switch_label = gtk_label_new(self->uiStrings->enable_purification_label.c_str());
     self->enableSwitch = gtk_switch_new();
     gtk_switch_set_active(GTK_SWITCH(self->enableSwitch), self->isCleanerEnabled);
     // 使用 "notify::active" 信号来响应开关状态的变化，而不是 "state-set"
@@ -102,7 +103,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_box_append(GTK_BOX(box), switch_box);
 
 
-    GtkWidget* chk = gtk_check_button_new_with_label("自动将换行符替换为空格");
+    GtkWidget* chk = gtk_check_button_new_with_label(self->uiStrings->replace_newlines_label.c_str());
     gtk_check_button_set_active(GTK_CHECK_BUTTON(chk), self->config.replaceNewlinesWithSpaces);
     g_signal_connect(chk, "toggled", G_CALLBACK(on_check_toggled), self);
     gtk_box_append(GTK_BOX(box), chk);
@@ -112,7 +113,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_editable_set_text(GTK_EDITABLE(edt), self->config.preservedSymbols.c_str());
     gtk_widget_set_hexpand(edt, TRUE);
     g_signal_connect(edt, "changed", G_CALLBACK(on_entry_changed), self);
-    gtk_box_append(GTK_BOX(hbox), gtk_label_new("保留符号："));
+    gtk_box_append(GTK_BOX(hbox), gtk_label_new(self->uiStrings->preserved_symbols_label.c_str()));
     gtk_box_append(GTK_BOX(hbox), edt);
     gtk_box_append(GTK_BOX(box), hbox);
 
@@ -125,7 +126,7 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     gtk_scrolled_window_set_child(GTK_SCROLLED_WINDOW(scroll), tv);
     gtk_box_append(GTK_BOX(box), scroll);
 
-    GtkWidget* btn = gtk_button_new_with_label("退出程序");
+    GtkWidget* btn = gtk_button_new_with_label(self->uiStrings->quit_button_label.c_str());
     g_signal_connect(btn, "clicked", G_CALLBACK(on_quit_clicked), self);
     gtk_box_append(GTK_BOX(box), btn);
 

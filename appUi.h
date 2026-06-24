@@ -2,6 +2,7 @@
 #include <gtk/gtk.h>
 #include <string>
 #include "config.h"
+#include <memory>
 
 // 前向声明，避免在头文件中互相#include
 class SystemTrayWin32;
@@ -15,6 +16,7 @@ public:
     gulong clip_handler_id = 0;
     std::string lastStr;
     ClipboardConfig config;
+    std::unique_ptr<UIStrings> uiStrings;
 
     ClipboardToolApp();
     int run(int argc, char* argv[]);
