@@ -24,9 +24,10 @@ void ClipboardToolApp::on_check_toggled(GtkCheckButton* btn, gpointer user_data)
     static_cast<ClipboardToolApp*>(user_data)->config.replaceNewlinesWithSpaces = gtk_check_button_get_active(btn);
 }
 
-void ClipboardToolApp::on_enable_switch_toggled(GtkSwitch* sw, gboolean state, gpointer user_data) {
+void ClipboardToolApp::on_enable_switch_toggled(GObject* sw, GParamSpec* pspec, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
-    self->isCleanerEnabled = state;
+    // 当 "active" 属性变化时，我们从 GtkSwitch 对象本身获取新的状态
+    self->isCleanerEnabled = gtk_switch_get_active(GTK_SWITCH(sw));
     SystemTrayWin32::update_menu_state();
 }
 
@@ -80,24 +81,6 @@ void ClipboardToolApp::sync_ui_state() {
 void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     auto* self = static_cast<ClipboardToolApp*>(user_data);
 
-    // --- 新增代码：加载自定义CSS以美化开关 ---
-    GtkCssProvider* provider = gtk_css_provider_new();
-    const char* css_data =
-        "/* GtkSwitch OFF state: gray background */"
-        "switch {"
-        "   background-image: none;"
-        "   background-color: #a0a0a0;"
-        "}"
-        "/* GtkSwitch ON state: blue background */"
-        "switch:checked {"
-        "   background-image: none;"
-        "   background-color: #3584e4;"
-        "}";
-    gtk_css_provider_load_from_string(provider, css_data);
-    gtk_style_context_add_provider_for_display(gdk_display_get_default(), GTK_STYLE_PROVIDER(provider), GTK_STYLE_PROVIDER_PRIORITY_APPLICATION);
-    g_object_unref(provider);
-    // --- 新增代码结束 ---
-
     self->win = gtk_application_window_new(app);
     gtk_window_set_title(GTK_WINDOW(self->win), "剪贴板文献净化工具");
     gtk_window_set_default_size(GTK_WINDOW(self->win), 500, 350);
@@ -112,7 +95,8 @@ void ClipboardToolApp::on_activate(GtkApplication* app, gpointer user_data) {
     GtkWidget* switch_label = gtk_label_new("开启剪贴板净化：");
     self->enableSwitch = gtk_switch_new();
     gtk_switch_set_active(GTK_SWITCH(self->enableSwitch), self->isCleanerEnabled);
-    g_signal_connect(self->enableSwitch, "state-set", G_CALLBACK(on_enable_switch_toggled), self);
+    // 使用 "notify::active" 信号来响应开关状态的变化，而不是 "state-set"
+    g_signal_connect(self->enableSwitch, "notify::active", G_CALLBACK(on_enable_switch_toggled), self);
     gtk_box_append(GTK_BOX(switch_box), switch_label);
     gtk_box_append(GTK_BOX(switch_box), self->enableSwitch);
     gtk_box_append(GTK_BOX(box), switch_box);

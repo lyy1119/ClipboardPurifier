@@ -29,7 +29,7 @@ private:
     static void on_quit_clicked(GtkButton* btn, gpointer user_data);
     static void on_clip_changed(GdkClipboard* clip, gpointer user_data);
     static void on_clip_read(GObject* src, GAsyncResult* res, gpointer user_data);
-    static void on_enable_switch_toggled(GtkSwitch* sw, gboolean state, gpointer user_data);    
+    static void on_enable_switch_toggled(GObject* sw, GParamSpec* pspec, gpointer user_data);
 
     void append_log(const std::string& msg);
 };
